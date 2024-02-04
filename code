@@ -1,0 +1,95 @@
+def startgetpaystatus(payid, number, password):
+    # driver = webdriver.Firefox()
+    service = Service(executable_path=GeckoDriverManager().install())
+    driver = webdriver.Firefox(service=service)
+    url = "https://m.huilaimi.com/#/login"
+    driver.get(url)
+    element = driver.find_element(By.XPATH, "//*[ @ id = 'app'] / div / div / form / a / span")
+    element.click()
+
+    element = driver.find_element(By.XPATH, '//*[@id="app"]/div/div/form/div[2]/div/div/input')
+    element.send_keys(number)  # 账号（手机号）
+
+    element = driver.find_element(By.XPATH, '//*[@id="app"]/div/div/form/div[3]/div/div/input')
+    element.send_keys(password)  # 密码
+
+    element = driver.find_element(By.XPATH, '//*[@id="app"]/div/div/form/button')
+    element.click()
+
+    time.sleep(3)
+    element = driver.find_element(By.XPATH, '/html/body/div/div/div[2]/div/div[1]/div/ul/div[3]/li/div')
+    element.click()
+
+    element = driver.find_element(By.XPATH, '/html/body/div/div/div[2]/div/div[1]/div/ul/div[3]/li/ul/div[1]/a/li')
+    element.click()
+
+    # 已经打开了《交易记录》
+    time.sleep(3)
+
+    element = driver.find_element(By.XPATH,
+                                  '/html/body/div/div/div[3]/section/div/form/div[3]/div[2]/div/div/button[3]')
+    element.click()
+
+    element = driver.find_element(By.XPATH, '/html/body/div/div/div[3]/section/div/form/div[4]/div[1]/div/button')
+    element.click()
+
+    #已经打开了查询本周交易记录
+    time.sleep(3)
+    start_time = time.time()  # 记录开始时间
+    while True:
+        # 检查是否已经过去了3分钟
+        if time.time() - start_time > 180:
+            driver.close()
+            break
+
+        element = driver.find_element(By.XPATH, '/html/body/div/div/div[3]/section/div/div/div[2]/div/div[1]/div[3]/table/tbody/tr[1]/td[7]/div')
+        last_orderid = element.text
+        print('last_orderid = ' + last_orderid)
+        if paymentData.objects.filter(orderID=last_orderid).exists():
+            print(f"字段orderID中存在值为{last_orderid}的记录")
+        else:
+            #获取金额，获取订单号，获取支付方式，更新支付状态
+
+            obj = paymentData.objects.get(payID=payid)
+            #获取订单号
+            element = driver.find_element(By.XPATH,
+                                          '/html/body/div/div/div[3]/section/div/div/div[2]/div/div[1]/div[3]/table/tbody/tr[1]/td[7]/div')
+            orderid = element.text
+            obj.orderID = orderid
+            #获取后台交易日期
+            element = driver.find_element(By.XPATH,
+                                          '/html/body/div/div/div[3]/section/div/div/div[2]/div/div[1]/div[3]/table/tbody/tr[1]/td[1]/div')
+            trade_date = element.text
+            obj.date = trade_date
+            #获取支付方式
+            element = driver.find_element(By.XPATH,
+                                          '/html/body/div/div/div[3]/section/div/div/div[2]/div/div[1]/div[3]/table/tbody/tr[1]/td[9]/div')
+            gateway = element.text
+            obj.gateway = gateway
+            #获取金额
+            element = driver.find_element(By.XPATH,
+                                          '/html/body/div/div/div[3]/section/div/div/div[2]/div/div[1]/div[3]/table/tbody/tr[1]/td[12]/div')
+            amount = element.text
+            obj.amount = amount
+            #更新订单状态
+
+            obj.status = '支付成功'
+            obj.save()
+
+            #返回支付成功回调，重定向
+            driver.close()
+            # pay_success()
+            postpaydata(payid)
+            print(f"字段orderID中不存在值为{last_orderid}的记录")
+
+        time.sleep(5)
+        driver.refresh()
+        time.sleep(3)
+
+        element = driver.find_element(By.XPATH,
+                                      '/html/body/div/div/div[3]/section/div/form/div[3]/div[2]/div/div/button[3]')
+        element.click()
+
+        element = driver.find_element(By.XPATH, '/html/body/div/div/div[3]/section/div/form/div[4]/div[1]/div/button')
+        element.click()
+        time.sleep(3)
